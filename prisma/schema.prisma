@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Pessoas {
+  id         String       @id @default(cuid())
+  nome       String       @db.VarChar(255)
+  documento  String       @unique @db.VarChar(255)
+  patente    Patentes     @default(Civil)
+  unidade    String       @db.VarChar(255)
+  createAt   DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  veiculos   Veiculos[]
+  Movimentos Movimentos[]
+}
+
+enum Patentes {
+  Coronel
+  TenenteCoronel
+  Major
+  Capitao
+  PrimeiroTenente
+  SegundoTenente
+  Aspirante
+  AlunoOficial
+  SubTenente
+  PrimeiroSargento
+  SegundoSargento
+  TerceiroSargento
+  AlunoSargento
+  Cabo
+  Soldado
+  Civil
+  Outros
+}
+
+model Veiculos {
+  id         String        @id @default(cuid())
+  placa      String        @db.VarChar(255)
+  tipo       TiposVeiculos @default(Particular)
+  modelo     String        @db.VarChar(255)
+  cartao     String        @db.VarChar(255)
+  createAt   DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  pessoa     Pessoas?       @relation(fields: [pessoaId], references: [id])
+  pessoaId   String?
+  Movimentos Movimentos[]
+}
+
+enum TiposVeiculos {
+  Viatura
+  Particular
+  Outros
+}
+
+model Listas {
+  id         String       @id @default(cuid())
+  createAt   DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  Movimentos Movimentos[]
+}
+
+model Movimentos {
+  id        String          @id @default(cuid())
+  categoria Categoria       @default(Pessoa)
+  tipo      TiposMovimentos @default(Entrada)
+  pessoa    Pessoas         @relation(fields: [pessoaId], references: [id])
+  pessoaId  String
+  veiculo   Veiculos?       @relation(fields: [veiculoId], references: [id])
+  veiculoId String?
+  lista     Listas          @relation(fields: [listaId], references: [id])
+  listaId   String
+  datahora      DateTime        @default(now())
+  createAt  DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+enum TiposMovimentos {
+  Entrada
+  Saida
+}
+
+enum Categoria {
+  Pessoa
+  Veiculo
+}
