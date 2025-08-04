@@ -1,4 +1,3 @@
-// app/register/page.tsx
 "use server";
 
 import { auth } from "../../../auth";
@@ -24,7 +23,7 @@ export default async function Register() {
   const nivel = await getUserNivelByEmail(session.user.email);
 
   if (nivel !== "Admin") {
-    redirect("/"); // ou exiba uma página de acesso negado
+    redirect("/"); 
   }
 
   return (

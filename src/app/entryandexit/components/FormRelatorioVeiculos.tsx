@@ -49,7 +49,7 @@ type Props = {
   onConfirmar: (dados: FormValues) => void;
 };
 
-export default function DialogRelatorioPessoas({
+export default function DialogRelatorioVeiculos({
   open,
   setOpen,
   onConfirmar,

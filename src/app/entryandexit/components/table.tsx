@@ -67,6 +67,9 @@ import { Pessoas } from "@/generated/prisma";
 import FormSearchList from "./FormSearchList";
 import DialogRelatorioPessoas from "./FormRelatorioPessoas";
 import { gerarRelatorioPessoasPdf } from "@/app/entryandexit/api/gerarRelatorioPessoas";
+import DialogRelatorioVeiculos from "./FormRelatorioVeiculos";
+import { gerarRelatorioVeiculosPdf } from "../api/gerarRelatorioVeiculos";
+import FormAddViatura from "./FormAddVtr";
 
 interface Props {
   initialMovimentos?: MovimentoComRelacionados[];
@@ -134,6 +137,11 @@ export default function TableInit({
   const [openSearchList, setOpenSearchList] = useState(false);
   const [openDialogRelatorio, setOpenDialogRelatorio] = useState(false);
 
+  const [openAddViatura, setOpenAddViatura] = useState(false);
+
+  const [openDialogRelatorioVeiculos, setOpenDialogRelatorioVeiculos] =
+    useState(false);
+
   const registrosFiltrados = movimentos.filter((movimento) => {
     const matchTipo = filtroTipo === "todos" || movimento.tipo === filtroTipo;
     const matchCategoria =
@@ -199,6 +207,34 @@ export default function TableInit({
     });
   };
 
+  const handleGerarRelatorioVeiculos = async ({
+    numeroParte,
+    reResponsavel,
+    nomeGuerra,
+    horaInicio,
+    horaFim,
+  }: {
+    numeroParte: string;
+    reResponsavel: string;
+    nomeGuerra: string;
+    horaInicio: string;
+    horaFim: string;
+  }) => {
+    const listaFiltrada = movimentos.filter(
+      (mov) => mov.categoria === "Veiculo"
+    );
+    const dataLista = listaFiltrada[0]?.datahora ?? new Date();
+    await gerarRelatorioVeiculosPdf({
+      numeroParte,
+      reResponsavel,
+      nomeGuerra,
+      horaInicio,
+      horaFim,
+      lista: listaFiltrada,
+      dataLista,
+    });
+  };
+
   return (
     <div>
       <Card>
@@ -209,6 +245,10 @@ export default function TableInit({
               Registros de Movimentação
             </div>
             <div className="flex flex-row gap-2">
+              <Button onClick={() => setOpenAddViatura(true)}>
+                <CarFront className="h-4 w-4 mr-2" />
+                Registrar Viatura
+              </Button>
               <FormAdd open={openAdd} setOpen={setOpenAdd} />
               <FormSearch
                 open={openSearch}
@@ -429,7 +469,9 @@ export default function TableInit({
                       Gerar Relatório de Pessoas
                     </Button>
 
-                    <Button>
+                    <Button
+                      onClick={() => setOpenDialogRelatorioVeiculos(true)}
+                    >
                       <Car className="h-4 w-4 mr-2" />
                       Gerar Relatório de Veiculos
                     </Button>
@@ -502,6 +544,14 @@ export default function TableInit({
         setOpen={setOpenDialogRelatorio}
         onConfirmar={handleGerarRelatorio}
       />
+
+      <DialogRelatorioVeiculos
+        open={openDialogRelatorioVeiculos}
+        setOpen={setOpenDialogRelatorioVeiculos}
+        onConfirmar={handleGerarRelatorioVeiculos}
+      />
+
+      <FormAddViatura open={openAddViatura} setOpen={setOpenAddViatura} />
     </div>
   );
 }

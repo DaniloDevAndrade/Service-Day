@@ -12,7 +12,7 @@ interface GerarRelatorioParams {
   dataLista: Date;
 }
 
-export async function gerarRelatorioPessoasPdf({
+export async function gerarRelatorioVeiculosPdf({
   numeroParte,
   reResponsavel,
   nomeGuerra,
@@ -22,7 +22,7 @@ export async function gerarRelatorioPessoasPdf({
   dataLista,
 }: GerarRelatorioParams) {
   const pdfDoc = await PDFDocument.create();
-  let page = pdfDoc.addPage([595.28, 841.89]); // A4
+  let page = pdfDoc.addPage([595.28, 841.89]);
   const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const pageHeight = page.getHeight();
@@ -31,9 +31,20 @@ export async function gerarRelatorioPessoasPdf({
   const rowHeight = 22;
   const marginLeft = 50;
   const marginRight = 50;
-  const contentWidth = 595.28 - marginLeft - marginRight;
+  const tableX = marginLeft;
 
-  // Brasão
+  const columns = [
+    { label: "PLACA", width: 65 },
+    { label: "MODELO", width: 80 },
+    { label: "TIPO", width: 60 },
+    { label: "RESPONSÁVEL", width: 90 },
+    { label: "RE / CPF", width: 80 },
+    { label: "ENT/SAÍ", width: 55 },
+    { label: "HORÁRIO", width: 65 },
+  ];
+
+  const contentWidth = columns.reduce((acc, col) => acc + col.width, 0);
+
   const imageBytes = await fetch("/brasao.png").then((res) =>
     res.arrayBuffer()
   );
@@ -51,7 +62,6 @@ export async function gerarRelatorioPessoasPdf({
     font: boldFont,
   });
 
-  // Cabeçalho
   const formatDate = (d: Date) =>
     d.toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -90,7 +100,7 @@ export async function gerarRelatorioPessoasPdf({
     size: 12,
     font,
   });
-  page.drawText(`Assunto: Relação de Entrada e Saída de Pessoas.`, {
+  page.drawText(`Assunto: Relação de Entrada e Saída de Veículos.`, {
     x: 150,
     y: y - 120,
     size: 12,
@@ -99,7 +109,7 @@ export async function gerarRelatorioPessoasPdf({
 
   y = drawParagraphHangingIndent({
     page,
-    text: `1. Informo a V.S.ª que nesta data, durante o turno de serviço das ${horaInicio}h às ${horaFim}h, adentraram ao quartel as pessoas abaixo relacionadas:`,
+    text: `1. Informo a V.S.ª que nesta data, durante o turno de serviço das ${horaInicio}h às ${horaFim}h, adentraram ao quartel os veículos abaixo relacionados:`,
     x: marginLeft + 30,
     y: y - 200,
     maxWidth: contentWidth,
@@ -110,16 +120,6 @@ export async function gerarRelatorioPessoasPdf({
   });
 
   y -= 20;
-
-  const columns = [
-    { label: "POSTO/GRAD.", width: 80 },
-    { label: "RE", width: 80 },
-    { label: "NOME", width: 140 },
-    { label: "ENTRADA/SAÍDA", width: 90 },
-    { label: "HORÁRIO", width: 105 },
-  ];
-
-  const tableX = marginLeft;
 
   const drawText = (
     text: string,
@@ -133,10 +133,8 @@ export async function gerarRelatorioPessoasPdf({
     const activeFont = bold ? boldFont : font;
     const textWidth = activeFont.widthOfTextAtSize(text, fontSize);
     const textHeight = activeFont.heightAtSize(fontSize);
-
     const xPos = x + (width - textWidth) / 2;
     const yPos = y + (height - textHeight) / 2 + 2;
-
     page.drawText(text, { x: xPos, y: yPos, size: fontSize, font: activeFont });
   };
 
@@ -170,11 +168,15 @@ export async function gerarRelatorioPessoasPdf({
   };
 
   const drawTableRow = (mov: MovimentoComRelacionados) => {
+    if (!mov.veiculo) return;
+
     let colX = tableX;
     const rowValues = [
-      abreviarPatente(mov.pessoa.patente),
-      mov.pessoa.documento,
+      mov.veiculo.placa,
+      mov.veiculo.modelo,
+      mov.veiculo.tipo,
       mov.pessoa.nome,
+      mov.pessoa.documento,
       mov.tipo,
       mov.datahora.toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -182,7 +184,7 @@ export async function gerarRelatorioPessoasPdf({
       }),
     ];
     for (let i = 0; i < columns.length; i++) {
-      drawCell(rowValues[i], colX, y, columns[i].width, rowHeight);
+      drawCell(rowValues[i] ?? "-", colX, y, columns[i].width, rowHeight);
       colX += columns[i].width;
     }
     y -= rowHeight;
@@ -200,14 +202,13 @@ export async function gerarRelatorioPessoasPdf({
     drawTableRow(mov);
   }
 
-  // Evita quebra do bloco final
   const blocoFinalAltura = 130;
   if (y < blocoFinalAltura + 60) {
     page = pdfDoc.addPage([595.28, 841.89]);
     y = page.getHeight() - 50;
   }
 
-  // Bloco Oficial
+  // Rodapé padrão
   page.drawText(`Em _____/_____/2025.`, {
     x: marginLeft,
     y: y - 30,
@@ -239,7 +240,6 @@ export async function gerarRelatorioPessoasPdf({
     font,
   });
 
-  // Bloco Sgt
   page.drawText(`Em _____/_____/2025.`, {
     x: marginLeft + 150,
     y: y - 30,
@@ -271,7 +271,6 @@ export async function gerarRelatorioPessoasPdf({
     font,
   });
 
-  // Bloco Assinatura ajustado
   const partesNome = nomeGuerra.trim().split(" ");
   const patenteCompleta = partesNome.slice(0, 2).join(" ");
   const nome = partesNome.slice(2).join(" ").toUpperCase();
@@ -316,7 +315,7 @@ export async function gerarRelatorioPessoasPdf({
   const blob = new Blob([new Uint8Array(pdfBytes)], {
     type: "application/pdf",
   });
-  saveAs(blob, `Relatorio_Pessoas_${numeroParte}.pdf`);
+  saveAs(blob, `Relatorio_Veiculos_${numeroParte}.pdf`);
 }
 
 function abreviarPatente(patente: string): string {
@@ -401,7 +400,6 @@ function desenharRodapeEmTodasPaginas({
 }: {
   pdfDoc: PDFDocument;
   font: PDFFont;
-  fontSize?: number;
 }) {
   const frase =
     '"Nós Policiais Militares, sob a proteção de Deus, estamos compromissados com a defesa da Vida, da Integridade Física e Dignidade Humana."';

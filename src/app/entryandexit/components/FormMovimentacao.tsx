@@ -25,7 +25,7 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Pessoas } from "@/generated/prisma";
 import {
   Popover,
@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import createMovimentacao from "../api/createMovimentacao";
 import { toast } from "sonner";
+import requestViaturas from "../api/requestVtr";
 
 type PessoaComVeiculos = Pessoas & {
   veiculos: {
@@ -51,6 +52,7 @@ type PessoaComVeiculos = Pessoas & {
 const schema = z.object({
   tipo: z.enum(["Entrada", "Saida"]),
   categoria: z.enum(["Pessoa", "Veiculo"]),
+  tipoVeiculo: z.enum(["Particular", "Viatura"]).optional(),
   veiculoId: z.string().optional(),
   datahora: z.date(),
 });
@@ -60,7 +62,7 @@ type FormMovimentacaoProps = {
   setOpen: (value: boolean) => void;
   pessoa: PessoaComVeiculos | null;
   atualizarLista: () => void;
-  listaId: string; // <-- novo
+  listaId: string;
 };
 
 export default function FormMovimentacao({
@@ -70,11 +72,16 @@ export default function FormMovimentacao({
   atualizarLista,
   listaId,
 }: FormMovimentacaoProps) {
+  const [viaturas, setViaturas] = useState<
+    { id: string; placa: string; modelo: string }[]
+  >([]);
+
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       tipo: "Entrada",
       categoria: "Pessoa",
+      tipoVeiculo: "Particular",
       veiculoId: undefined,
       datahora: new Date(),
     },
@@ -96,11 +103,16 @@ export default function FormMovimentacao({
     const res = await createMovimentacao(payload);
 
     if (res.success) {
+      form.reset({
+        tipo: "Entrada",
+        categoria: "Pessoa",
+        tipoVeiculo: "Particular",
+        veiculoId: undefined,
+        datahora: new Date(),
+      });
       setOpen(false);
-
-      // Aguarda o dialog fechar e atualiza a lista
       setTimeout(() => {
-        atualizarLista(); // <-- função passada via props
+        atualizarLista();
       }, 200);
     } else {
       toast("Erro: " + res.message);
@@ -132,7 +144,6 @@ export default function FormMovimentacao({
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {/* Data e Hora */}
               <FormField
                 control={form.control}
                 name="datahora"
@@ -140,7 +151,6 @@ export default function FormMovimentacao({
                   <FormItem>
                     <FormLabel>Data e Hora</FormLabel>
                     <div className="flex gap-2">
-                      {/* Calendar (data) */}
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -176,7 +186,6 @@ export default function FormMovimentacao({
                         </PopoverContent>
                       </Popover>
 
-                      {/* Time Picker */}
                       <FormControl>
                         <Input
                           type="time"
@@ -184,7 +193,7 @@ export default function FormMovimentacao({
                           value={field.value.toTimeString().slice(0, 5)}
                           onChange={(e) => {
                             const [hours, minutes] = e.target.value
-                              .split(":")
+                              .split(":" as const)
                               .map(Number);
                             const updated = new Date(field.value || new Date());
                             updated.setHours(hours);
@@ -199,7 +208,6 @@ export default function FormMovimentacao({
                 )}
               />
 
-              {/* Tipo de movimentação */}
               <FormField
                 control={form.control}
                 name="tipo"
@@ -225,7 +233,6 @@ export default function FormMovimentacao({
                 )}
               />
 
-              {/* Categoria da movimentação */}
               <FormField
                 control={form.control}
                 name="categoria"
@@ -253,15 +260,70 @@ export default function FormMovimentacao({
                 )}
               />
 
-              {/* Veículo (se necessário) */}
-              {form.watch("categoria") === "Veiculo" &&
-                pessoa.veiculos.length > 0 && (
+              {form.watch("categoria") === "Veiculo" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="tipoVeiculo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Veículo</FormLabel>
+                        <FormControl>
+                          <Select
+                            onValueChange={async (value) => {
+                              field.onChange(value);
+
+                              if (value === "Viatura") {
+                                const res = await requestViaturas();
+                                if (res.success && res.viaturas) {
+                                  const formatted = res.viaturas.map((v) => ({
+                                    id: v.id,
+                                    placa: v.placa,
+                                    modelo: v.modelo,
+                                  }));
+                                  setViaturas(formatted);
+
+                                  if (formatted.length > 0) {
+                                    form.setValue("veiculoId", formatted[0].id);
+                                  }
+                                }
+                              } else if (value === "Particular") {
+                                if (pessoa && pessoa.veiculos.length > 0) {
+                                  form.setValue(
+                                    "veiculoId",
+                                    pessoa.veiculos[0].id
+                                  );
+                                }
+                              }
+                            }}
+                            value={field.value}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Particular">
+                                Particular
+                              </SelectItem>
+                              <SelectItem value="Viatura">Viatura</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="veiculoId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Veículo</FormLabel>
+                        <FormLabel>
+                          {form.watch("tipoVeiculo") === "Viatura"
+                            ? "Viatura"
+                            : "Veículo"}
+                        </FormLabel>
                         <FormControl>
                           <Select
                             onValueChange={field.onChange}
@@ -271,7 +333,10 @@ export default function FormMovimentacao({
                               <SelectValue placeholder="Selecione o veículo" />
                             </SelectTrigger>
                             <SelectContent>
-                              {pessoa.veiculos.map((v) => (
+                              {(form.watch("tipoVeiculo") === "Viatura"
+                                ? viaturas
+                                : pessoa.veiculos
+                              ).map((v) => (
                                 <SelectItem key={v.id} value={v.id}>
                                   {v.placa} - {v.modelo}
                                 </SelectItem>
@@ -283,7 +348,8 @@ export default function FormMovimentacao({
                       </FormItem>
                     )}
                   />
-                )}
+                </>
+              )}
 
               <Button type="submit">Registrar</Button>
             </form>
