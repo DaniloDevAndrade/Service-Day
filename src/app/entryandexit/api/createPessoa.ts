@@ -1,6 +1,7 @@
 'use server'
 
-import { prisma } from "../../../database/db";
+import { Patentes } from "@/generated/prisma";
+import { prisma } from "../../../../database/db";
 
 
 type CreatePessoaProps = {
@@ -23,7 +24,7 @@ export default async function createPessoa(data: CreatePessoaProps) {
       data: {
         nome: data.name,
         documento: data.documento,
-        patente: data.patente as any,
+        patente: data.patente as Patentes,
         unidade: data.unidade,
         veiculos: data.possuiVeiculo === "sim" && data.veiculo
           ? {
@@ -45,6 +46,7 @@ export default async function createPessoa(data: CreatePessoaProps) {
 
   } catch (error) {
     console.error("Erro ao criar pessoa:", error);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     return { success: false, message: error.message };
   }

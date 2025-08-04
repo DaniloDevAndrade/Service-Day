@@ -9,7 +9,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod/v3";
 import { useForm } from "react-hook-form";
@@ -32,6 +31,9 @@ import {
 import { useState } from "react";
 import { Pessoas } from "@/generated/prisma";
 import fetchPessoas from "../api/requestPessoas";
+import { Search } from "lucide-react";
+import deletePessoa from "../api/deletePessoa";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const formSchema = z
   .object({
@@ -104,6 +106,10 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
     "documento"
   );
   const [pessoasEncontradas, setPessoasEncontradas] = useState<PessoaComVeiculos[]>([]);
+  const [openConfirmDeletePessoa, setOpenConfirmDeletePessoa] = useState(false);
+  const [pessoaParaExcluir, setPessoaParaExcluir] = useState<PessoaComVeiculos | null>(null);
+  const [buscaRealizada, setBuscaRealizada] = useState(false);
+  
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -117,6 +123,7 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
 
   const handleNovaBusca = () => {
     setPessoasEncontradas([]);
+    setBuscaRealizada(false); // ← isso aqui é o que estava faltando
     form.reset({
       name: "",
       documento: "",
@@ -124,10 +131,6 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
     });
   };
 
-  const handleSelecionarPessoa = (pessoa: Pessoas) => {
-    console.log("Pessoa selecionada:", pessoa);
-    // Aqui você pode passar a pessoa selecionada para outro componente ou armazenar em contexto
-  };
   const patenteLabelMap: Record<string, string> = {
     Coronel: "Coronel",
     TenenteCoronel: "Tenente-Coronel",
@@ -163,12 +166,15 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
       } else {
         setPessoasEncontradas([]);
       }
-      } catch (error) {
+
+      setBuscaRealizada(true); // <- importante
+    } catch (error) {
       console.error("Erro ao buscar pessoa:", error);
     }
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
@@ -210,15 +216,24 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
                   <div className="flex flex-row gap-2">
                     <Button
                       size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setPessoaParaExcluir(pessoa);
+                        setOpenConfirmDeletePessoa(true);
+                      }}
+                    >
+                      Excluir
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => onEditarPessoaClick(pessoa)}
-                  >
+                    >
                       Editar
-                  </Button>
-
-                  <Button size="sm" onClick={() => onSelecionarPessoaClick(pessoa)}>
-                    Selecionar
-                  </Button>
+                    </Button>
+                    <Button size="sm" onClick={() => onSelecionarPessoaClick(pessoa)}>
+                      Selecionar
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -252,8 +267,14 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
                     <FormControl>
                       <Select
                         onValueChange={(value) => {
-                          field.onChange(value);
-                          setTipoBusca(value as "documento" | "name" | "placa");
+                          const newTipo = value as "documento" | "name" | "placa";
+                          field.onChange(newTipo);
+                          setTipoBusca(newTipo);
+
+                          // Limpa os outros campos que não correspondem ao novo tipo de busca
+                          if (newTipo !== "documento") form.resetField("documento");
+                          if (newTipo !== "name") form.resetField("name");
+                          if (newTipo !== "placa") form.resetField("placa");
                         }}
                         value={field.value}
                       >
@@ -328,11 +349,52 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
                 />
               )}
 
-              <Button type="submit">Buscar</Button>
+              <div className="space-y-2">
+                <Button type="submit">Buscar</Button>
+                {buscaRealizada && pessoasEncontradas.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma pessoa foi encontrada.
+                  </p>
+                )}
+              </div>
             </form>
           )}
         </Form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={openConfirmDeletePessoa} onOpenChange={setOpenConfirmDeletePessoa}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir <strong>{pessoaParaExcluir?.nome}</strong> e todos os veículos relacionados? Esta ação não poderá ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-700"
+            onClick={async () => {
+              if (!pessoaParaExcluir) return;
+              const res = await deletePessoa(pessoaParaExcluir.id);
+              if (res.success) {
+                setPessoasEncontradas((prev) =>
+                  prev.filter((p) => p.id !== pessoaParaExcluir.id)
+                );
+                setPessoaParaExcluir(null);
+                setOpenConfirmDeletePessoa(false);
+              } else {
+                alert("Erro ao excluir: " + res.message);
+              }
+            }}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    </>
   );
 }

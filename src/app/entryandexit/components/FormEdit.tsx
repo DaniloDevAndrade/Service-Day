@@ -7,9 +7,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod/v3";
 import { useForm } from "react-hook-form";
@@ -30,7 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useEffect, useState } from "react";
-import createPessoa from "../api/createPessoa";
 import { Pessoas } from "@/generated/prisma";
 import editPessoa from "../api/editpessoa";
 

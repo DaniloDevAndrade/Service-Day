@@ -1,7 +1,7 @@
 'use server'
 
 import { Prisma } from "@/generated/prisma"
-import { prisma } from "../../../database/db"
+import { prisma } from "../../../../database/db"
 
 type Props = {
   nomePessoa?: string

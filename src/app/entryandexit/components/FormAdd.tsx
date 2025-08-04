@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { useState } from "react";
 import createPessoa from "../api/createPessoa";
+import { toast } from "sonner";
 
 const patenteOptions: { label: string; value: string }[] = [
   { value: "Coronel", label: "Coronel" },
@@ -58,26 +59,39 @@ const veiculoSchema = z.object({
   cartao: z.string().min(1, "Cartão é obrigatório"),
 });
 
-const formSchema = z.object({
-  name: z.string().min(3, { message: "Nome completo deve ter pelo menos 3 caracteres" }),
-  documento: z.string().min(3, { message: "Documento deve ter pelo menos 3 caracteres" }),
-  posto: z.enum(patenteOptions.map((opt) => opt.value) as [string, ...string[]]),
-  unidade: z.string().min(3, { message: "Unidade deve ter pelo menos 3 caracteres" }),
-  possuiVeiculo: z.enum(["sim", "nao"]),
-  veiculo: z
-    .array(veiculoSchema)
-    .optional(),
-}).refine((data) => {
-  if (data.possuiVeiculo === "sim") {
-    return data.veiculo && data.veiculo.length > 0 && data.veiculo.every((v) => 
-      v.placa && v.modelo && v.cartao
-    );
-  }
-  return true;
-}, {
-  path: ["veiculo"],
-  message: "Todos os campos dos veículos são obrigatórios",
-});
+const formSchema = z
+  .object({
+    name: z
+      .string()
+      .min(3, { message: "Nome completo deve ter pelo menos 3 caracteres" }),
+    documento: z
+      .string()
+      .min(3, { message: "Documento deve ter pelo menos 3 caracteres" }),
+    posto: z.enum(
+      patenteOptions.map((opt) => opt.value) as [string, ...string[]]
+    ),
+    unidade: z
+      .string()
+      .min(3, { message: "Unidade deve ter pelo menos 3 caracteres" }),
+    possuiVeiculo: z.enum(["sim", "nao"]),
+    veiculo: z.array(veiculoSchema).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.possuiVeiculo === "sim") {
+        return (
+          data.veiculo &&
+          data.veiculo.length > 0 &&
+          data.veiculo.every((v) => v.placa && v.modelo && v.cartao)
+        );
+      }
+      return true;
+    },
+    {
+      path: ["veiculo"],
+      message: "Todos os campos dos veículos são obrigatórios",
+    }
+  );
 
 type FormAddProps = {
   open: boolean;
@@ -102,21 +116,30 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const response = await createPessoa({
-        name: values.name,
-        documento: values.documento,
-        patente: values.posto,
-        unidade: values.unidade,
-        possuiVeiculo: values.possuiVeiculo,
-        veiculo: values.possuiVeiculo === "sim" ? values.veiculo : [],
+      name: values.name,
+      documento: values.documento,
+      patente: values.posto,
+      unidade: values.unidade,
+      possuiVeiculo: values.possuiVeiculo,
+      veiculo: values.possuiVeiculo === "sim" ? values.veiculo : [],
     });
 
     if (response.success) {
-        form.reset(); // limpa os campos
-        setQuantidadeVeiculos(1); // reseta quantidade de veículos
-        setPossuiVeiculo("nao"); // reseta seleção
-        setOpen(false); // fecha o Dialog
+      form.reset({
+        name: "",
+        documento: "",
+        posto: "Soldado",
+        unidade: "",
+        possuiVeiculo: "sim",
+        veiculo: [],
+      });
+
+      setQuantidadeVeiculos(1);
+      setPossuiVeiculo("sim");
+      setOpen(false);
+      toast(`${values.name} registrado com sucesso!`);
     } else {
-        alert("Erro ao registrar: " + response.message);
+      toast("Erro: " + response.message);
     }
   }
 
@@ -126,18 +149,22 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
         <Button>
           <Plus className="mr-2 h-4 w-4" />
           Registrar Pessoa
-      </Button>
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Registrar Nova Pessoa</DialogTitle>
-          <DialogDescription>Registrar pessoas ao banco de dados</DialogDescription>
+          <DialogDescription>
+            Registrar pessoas ao banco de dados
+          </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[70vh] overflow-y-auto pr-2">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col">
-
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-6 flex flex-col"
+            >
               <FormField
                 control={form.control}
                 name="documento"
@@ -173,7 +200,10 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                   <FormItem>
                     <FormLabel>Posto / Graduação</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione uma patente" />
                         </SelectTrigger>
@@ -220,7 +250,14 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                           if (value === "nao") {
                             form.setValue("veiculo", []);
                           } else {
-                            form.setValue("veiculo", Array(quantidadeVeiculos).fill({ placa: "", modelo: "", cartao: "" }));
+                            form.setValue(
+                              "veiculo",
+                              Array(quantidadeVeiculos).fill({
+                                placa: "",
+                                modelo: "",
+                                cartao: "",
+                              })
+                            );
                           }
                         }}
                       >
@@ -248,7 +285,10 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                       onValueChange={(value) => {
                         const qtd = Number(value);
                         setQuantidadeVeiculos(qtd);
-                        form.setValue("veiculo", Array(qtd).fill({ placa: "", modelo: "", cartao: "" }));
+                        form.setValue(
+                          "veiculo",
+                          Array(qtd).fill({ placa: "", modelo: "", cartao: "" })
+                        );
                       }}
                     >
                       <SelectTrigger>
@@ -256,14 +296,19 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                       </SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5].map((num) => (
-                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                          <SelectItem key={num} value={num.toString()}>
+                            {num}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </FormItem>
 
                   {form.watch("veiculo")?.map((_, index) => (
-                    <div key={index} className="border p-3 rounded-lg space-y-4 bg-muted">
+                    <div
+                      key={index}
+                      className="border p-3 rounded-lg space-y-4 bg-muted"
+                    >
                       <h4 className="font-semibold">Veículo {index + 1}</h4>
 
                       <FormField
@@ -286,7 +331,10 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                           <FormItem>
                             <FormLabel>Modelo</FormLabel>
                             <FormControl>
-                              <Input placeholder="Gol G7 / XRE 300" {...field} />
+                              <Input
+                                placeholder="Gol G7 / XRE 300"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

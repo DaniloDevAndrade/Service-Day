@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from "../../../database/db";
+import { prisma } from "../../../../database/db";
 
 type EditMovimentoProps = {
   id: string;
@@ -36,6 +36,7 @@ export default async function editMovimento(data: EditMovimentoProps) {
     return { success: true, movimento: movimentoAtualizado };
   } catch (error) {
     console.error("Erro ao editar movimentação:", error);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     return { success: false, message: error.message };
   }

@@ -26,22 +26,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { Pessoas } from "@/generated/prisma";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import createMovimentacao from "../api/createMovimentacao";
+import { MovimentoCompleto } from "@/lib/types";
+import editMovimento from "../api/editmovimento";
 
-type PessoaComVeiculos = Pessoas & {
-  veiculos: {
-    id: string;
-    placa: string;
-    modelo: string;
-    cartao: string;
-  }[];
-};
 
 const schema = z.object({
   tipo: z.enum(["Entrada", "Saida"]),
@@ -50,20 +42,19 @@ const schema = z.object({
   datahora: z.date(),
 });
 
-type FormMovimentacaoProps = {
+type FormEditMovimentacaoProps = {
   open: boolean;
   setOpen: (value: boolean) => void;
-  pessoa: PessoaComVeiculos | null;
+  movimento: MovimentoCompleto | null;
   atualizarLista: () => void;
 };
 
-
-export default function FormMovimentacao({
+export default function FormEditMovimentacao({
   open,
   setOpen,
-  pessoa,
+  movimento,
   atualizarLista,
-}: FormMovimentacaoProps) {
+}: FormEditMovimentacaoProps) {
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -74,44 +65,52 @@ export default function FormMovimentacao({
     },
   });
 
+  useEffect(() => {
+    if (movimento) {
+      form.reset({
+        tipo: movimento.tipo,
+        categoria: movimento.categoria,
+        veiculoId: movimento.veiculoId ?? undefined,
+        datahora: new Date(movimento.datahora),
+      });
+    }
+  }, [movimento, form]);
+
   const onSubmit = async (values: z.infer<typeof schema>) => {
-    if (!pessoa) return;
+    if (!movimento) return;
 
     const payload = {
-        pessoaId: pessoa.id,
-        tipo: values.tipo,
-        categoria: values.categoria,
-        veiculoId: values.categoria === "Veiculo" ? values.veiculoId || null : null,
-        datahora: values.datahora,
+      id: movimento.id,
+      tipo: values.tipo,
+      categoria: values.categoria,
+      datahora: values.datahora,
+      pessoaId: movimento.pessoaId,
+      veiculoId: values.categoria === "Veiculo" ? values.veiculoId || null : null,
+      listaId: movimento.listaId,
     };
 
-    const res = await createMovimentacao(payload);
+    const res = await editMovimento(payload);
 
     if (res.success) {
-        setOpen(false);
-
-        // Aguarda o dialog fechar e atualiza a lista
-        setTimeout(() => {
-        atualizarLista(); // <-- função passada via props
-        }, 200);
+      setOpen(false);
+      setTimeout(() => {
+        atualizarLista();
+      }, 200);
     } else {
-        alert("Erro ao registrar movimentação: " + res.message);
+      alert("Erro ao editar movimentação: " + res.message);
     }
-    };
+  };
 
-  useEffect(() => {
-    if (pessoa && pessoa.veiculos.length === 1) {
-      form.setValue("veiculoId", pessoa.veiculos[0].id);
-    }
-  }, [pessoa]);
+  if (!movimento) return null;
 
-  if (!pessoa) return null;
+  const pessoa = movimento.pessoa;
+  const veiculos = pessoa.veiculos;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Registrar Movimentação</DialogTitle>
+          <DialogTitle>Editar Movimentação</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -133,16 +132,12 @@ export default function FormMovimentacao({
                   <FormItem>
                     <FormLabel>Data e Hora</FormLabel>
                     <div className="flex gap-2">
-                      {/* Calendar (data) */}
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant="outline"
-                              className={cn(
-                                "pl-3 text-left font-normal w-[180px]",
-                                !field.value && "text-muted-foreground"
-                              )}
+                              className={cn("pl-3 text-left font-normal w-[180px]")}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {field.value
@@ -167,19 +162,18 @@ export default function FormMovimentacao({
                         </PopoverContent>
                       </Popover>
 
-                      {/* Time Picker */}
                       <FormControl>
                         <Input
-                            type="time"
-                            className="w-full max-w-[6rem]"
-                            value={field.value.toTimeString().slice(0, 5)}
-                            onChange={(e) => {
+                          type="time"
+                          className="w-full max-w-[6rem]"
+                          value={field.value.toTimeString().slice(0, 5)}
+                          onChange={(e) => {
                             const [hours, minutes] = e.target.value.split(":").map(Number);
                             const updated = new Date(field.value || new Date());
                             updated.setHours(hours);
                             updated.setMinutes(minutes);
                             field.onChange(updated);
-                            }}
+                          }}
                         />
                       </FormControl>
                     </div>
@@ -188,13 +182,13 @@ export default function FormMovimentacao({
                 )}
               />
 
-              {/* Tipo de movimentação */}
+              {/* Tipo */}
               <FormField
                 control={form.control}
                 name="tipo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Movimentação</FormLabel>
+                    <FormLabel>Tipo</FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger>
@@ -211,7 +205,7 @@ export default function FormMovimentacao({
                 )}
               />
 
-              {/* Categoria da movimentação */}
+              {/* Categoria */}
               <FormField
                 control={form.control}
                 name="categoria"
@@ -234,8 +228,8 @@ export default function FormMovimentacao({
                 )}
               />
 
-              {/* Veículo (se necessário) */}
-              {form.watch("categoria") === "Veiculo" && pessoa.veiculos.length > 0 && (
+              {/* Veículo */}
+              {form.watch("categoria") === "Veiculo" && veiculos.length > 0 && (
                 <FormField
                   control={form.control}
                   name="veiculoId"
@@ -248,7 +242,7 @@ export default function FormMovimentacao({
                             <SelectValue placeholder="Selecione o veículo" />
                           </SelectTrigger>
                           <SelectContent>
-                            {pessoa.veiculos.map((v) => (
+                            {veiculos.map((v) => (
                               <SelectItem key={v.id} value={v.id}>
                                 {v.placa} - {v.modelo}
                               </SelectItem>
@@ -262,7 +256,9 @@ export default function FormMovimentacao({
                 />
               )}
 
-              <Button type="submit">Registrar</Button>
+              <Button type="submit" className="w-full">
+                Salvar Alterações
+              </Button>
             </form>
           </Form>
         </div>

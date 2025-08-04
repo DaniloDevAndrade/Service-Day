@@ -54,7 +54,7 @@ model Veiculos {
   cartao     String        @db.VarChar(255)
   createAt   DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
-  pessoa     Pessoas?       @relation(fields: [pessoaId], references: [id])
+  pessoa     Pessoas?      @relation(fields: [pessoaId], references: [id])
   pessoaId   String?
   Movimentos Movimentos[]
 }
@@ -67,9 +67,12 @@ enum TiposVeiculos {
 
 model Listas {
   id         String       @id @default(cuid())
+  nome       String       @db.VarChar(255)
   createAt   DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
   Movimentos Movimentos[]
+  Usuarios   Usuarios?    @relation(fields: [usuariosId], references: [id])
+  usuariosId String?
 }
 
 model Movimentos {
@@ -82,7 +85,7 @@ model Movimentos {
   veiculoId String?
   lista     Listas          @relation(fields: [listaId], references: [id])
   listaId   String
-  datahora      DateTime        @default(now())
+  datahora  DateTime        @default(now())
   createAt  DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 }
@@ -95,4 +98,21 @@ enum TiposMovimentos {
 enum Categoria {
   Pessoa
   Veiculo
+}
+
+model Usuarios {
+  id        String   @id @default(cuid())
+  nome      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  phone     String   @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  nivel     Niveis   @default(Comum)
+  listas    Listas[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Niveis {
+  Admin
+  Comum
 }

@@ -4,12 +4,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Plus } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod"
 import z from "zod/v3";
-import { useForm } from "react-hook-form";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form, useForm } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { FormField, FormItem, FormMessage } from "@/components/ui/form";
 
 const formSchema = z.object({
     type: z.enum(["entry", "exit"]),
@@ -17,14 +15,7 @@ const formSchema = z.object({
 )  
 
 export default function FormMovimento(){
-    const [newEntry, setNewEntry] = useState({
-        plate: "",
-        driver: "",
-        type: "entry" as "entry" | "exit",
-        purpose: "",
-    })
     
-
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {

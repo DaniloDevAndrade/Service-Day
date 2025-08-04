@@ -1,6 +1,7 @@
 'use server'
 
-import { prisma } from "../../../database/db";
+import { Patentes } from "@/generated/prisma";
+import { prisma } from "../../../../database/db";
 
 type EditPessoaProps = {
   id: string; // ID da pessoa a ser editada
@@ -20,14 +21,14 @@ type EditPessoaProps = {
 export default async function editPessoa(data: EditPessoaProps) {
   try {
     // Atualiza os dados da pessoa
-    const pessoaAtualizada = await prisma.pessoas.update({
+    await prisma.pessoas.update({
       where: {
         id: data.id,
       },
       data: {
         nome: data.name,
         documento: data.documento,
-        patente: data.patente as any,
+        patente: data.patente as Patentes,
         unidade: data.unidade,
       },
     });
@@ -63,7 +64,8 @@ export default async function editPessoa(data: EditPessoaProps) {
 
     return { success: true, pessoa: pessoaComVeiculos };
   } catch (error) {
-    console.error("Erro ao editar pessoa:", error);
+    console.error("Erro no editPessoa:", error);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     return { success: false, message: error.message };
   }
