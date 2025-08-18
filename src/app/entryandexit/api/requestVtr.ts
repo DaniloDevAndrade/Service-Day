@@ -17,7 +17,7 @@ export default async function requestViaturas() {
     return { success: true, viaturas };
   } catch (error) {
     console.error("Erro ao buscar viaturas:", error);
-    // @ts-expect-error
+    // @ts-expect-error: erro do tipo unknown sem verificação explícita
     return { success: false, message: error.message };
   }
 }

@@ -10,7 +10,28 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  {
+    // ✅ Ignorar arquivos globalmente
+    ignores: [
+      "src/generated/**", // código gerado do Prisma
+      "node_modules/**",
+      ".next/**",
+    ],
+  },
+
+  // ✅ Regras principais (Next.js e TypeScript)
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+
+  {
+    // ✅ Regras adicionais personalizadas
+    rules: {
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;

@@ -50,6 +50,12 @@ type Props = {
   setOpen: (value: boolean) => void;
 };
 
+type ApiViatura = {
+  id: string;
+  placa: string;
+  modelo: string;
+};
+
 type Viatura = {
   id: string;
   prefixo: string;
@@ -73,7 +79,7 @@ export default function FormAddViatura({ open, setOpen }: Props) {
     const res = await requestViaturas();
     if (res.success && res.viaturas) {
       setViaturas(
-        res.viaturas.map((v: any) => ({
+        res.viaturas.map((v: ApiViatura) => ({
           id: v.id,
           prefixo: v.placa,
           modelo: v.modelo,
@@ -119,7 +125,7 @@ export default function FormAddViatura({ open, setOpen }: Props) {
       form.setValue("modelo", viaturaEmEdicao.modelo);
       setMostrarLista(false);
     }
-  }, [viaturaEmEdicao]);
+  }, [viaturaEmEdicao, form]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -232,8 +238,8 @@ export default function FormAddViatura({ open, setOpen }: Props) {
                           </AlertDialogTitle>
                         </AlertDialogHeader>
                         <p>
-                          Deseja realmente excluir a viatura "
-                          {viaturaSelecionada?.prefixo}"?
+                          Deseja realmente excluir a viatura &quot;
+                          {viaturaSelecionada?.prefixo}&quot;?
                         </p>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>

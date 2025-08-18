@@ -33,7 +33,16 @@ import { Pessoas } from "@/generated/prisma";
 import fetchPessoas from "../api/requestPessoas";
 import { Search } from "lucide-react";
 import deletePessoa from "../api/deletePessoa";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const formSchema = z
   .object({
@@ -101,20 +110,28 @@ type PessoaComVeiculos = Pessoas & {
   }[];
 };
 
-export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarPessoaClick, onSelecionarPessoaClick }: FormSearchProps) {
+export default function FormSearch({
+  open,
+  setOpen,
+  onNovaPessoaClick,
+  onEditarPessoaClick,
+  onSelecionarPessoaClick,
+}: FormSearchProps) {
   const [tipoBusca, setTipoBusca] = useState<"documento" | "name" | "placa">(
-    "documento"
+    "name"
   );
-  const [pessoasEncontradas, setPessoasEncontradas] = useState<PessoaComVeiculos[]>([]);
+  const [pessoasEncontradas, setPessoasEncontradas] = useState<
+    PessoaComVeiculos[]
+  >([]);
   const [openConfirmDeletePessoa, setOpenConfirmDeletePessoa] = useState(false);
-  const [pessoaParaExcluir, setPessoaParaExcluir] = useState<PessoaComVeiculos | null>(null);
+  const [pessoaParaExcluir, setPessoaParaExcluir] =
+    useState<PessoaComVeiculos | null>(null);
   const [buscaRealizada, setBuscaRealizada] = useState(false);
-  
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      tipoBusca: "documento",
+      tipoBusca: "name",
       name: "",
       documento: "",
       placa: "",
@@ -123,7 +140,7 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
 
   const handleNovaBusca = () => {
     setPessoasEncontradas([]);
-    setBuscaRealizada(false); // ← isso aqui é o que estava faltando
+    setBuscaRealizada(false);
     form.reset({
       name: "",
       documento: "",
@@ -148,7 +165,7 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
     Cabo: "Cabo",
     Soldado: "Soldado",
     Civil: "Civil",
-    Outros: "Outros"
+    Outros: "Outros",
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -175,226 +192,252 @@ export default function FormSearch({ open, setOpen, onNovaPessoaClick, onEditarP
 
   return (
     <>
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Search className="mr-2 h-4 w-4" />
-          Buscar Pessoas/Veículos
-      </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Buscar Pessoas/Veículos</DialogTitle>
-          <DialogDescription>
-            Buscar por RE/CPF, Nome ou Placa de Veículo.
-          </DialogDescription>
-        </DialogHeader>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button>
+            <Search className="mr-2 h-4 w-4" />
+            Buscar Pessoas/Veículos
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Buscar Pessoas/Veículos</DialogTitle>
+            <DialogDescription>
+              Buscar por RE/CPF, Nome ou Placa de Veículo.
+            </DialogDescription>
+          </DialogHeader>
 
-        <Form {...form}>
-          {pessoasEncontradas.length > 0 ? (
-            <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Resultados Encontrados:</h3>
+          <Form {...form}>
+            {pessoasEncontradas.length > 0 ? (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">
+                  Resultados Encontrados:
+                </h3>
 
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-              {pessoasEncontradas.map((pessoa) => (
-                <div
-                  key={pessoa.id}
-                  className="border p-3 rounded-md flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium">{pessoa.nome}</p>
-                    <p className="text-sm text-muted-foreground">
-                      RE/CPF: {pessoa.documento}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Posto/Graduação: {patenteLabelMap[pessoa.patente] || pessoa.patente}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Unidade: {pessoa.unidade}
-                    </p>
-                  </div>
-                  <div className="flex flex-row gap-2">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => {
-                        setPessoaParaExcluir(pessoa);
-                        setOpenConfirmDeletePessoa(true);
-                      }}
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                  {pessoasEncontradas.map((pessoa) => (
+                    <div
+                      key={pessoa.id}
+                      className="border p-3 rounded-md flex items-center justify-between"
                     >
-                      Excluir
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEditarPessoaClick(pessoa)}
-                    >
-                      Editar
-                    </Button>
-                    <Button size="sm" onClick={() => onSelecionarPessoaClick(pessoa)}>
-                      Selecionar
-                    </Button>
-                  </div>
+                      <div>
+                        <p className="font-medium">{pessoa.nome}</p>
+                        <p className="text-sm text-muted-foreground">
+                          RE/CPF: {pessoa.documento}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Posto/Graduação:{" "}
+                          {patenteLabelMap[pessoa.patente] || pessoa.patente}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Unidade: {pessoa.unidade}
+                        </p>
+                      </div>
+                      <div className="flex flex-row gap-2">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setPessoaParaExcluir(pessoa);
+                            setOpenConfirmDeletePessoa(true);
+                          }}
+                        >
+                          Excluir
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onEditarPessoaClick(pessoa)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => onSelecionarPessoaClick(pessoa)}
+                        >
+                          Selecionar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div className="flex flex-row gap-2">
-            <Button variant="outline" onClick={handleNovaBusca}>
-              Nova Busca
-            </Button>
-            <Button
-              onClick={() => {
-                setOpen(false); // Fecha o Dialog atual (de busca)
-                setTimeout(() => {
-                  onNovaPessoaClick(); // Abre o de registro
-                }, 200); // Aguarda animação do dialog fechar
+                <div className="flex flex-row gap-2">
+                  <Button variant="outline" onClick={handleNovaBusca}>
+                    Nova Busca
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setOpen(false); // Fecha o Dialog atual (de busca)
+                      setTimeout(() => {
+                        onNovaPessoaClick(); // Abre o de registro
+                      }, 200); // Aguarda animação do dialog fechar
+                    }}
+                  >
+                    Registrar Nova Pessoa
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+              >
+                {/* Tipo de busca */}
+                <FormField
+                  control={form.control}
+                  name="tipoBusca"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg">Buscar por</FormLabel>
+                      <FormControl>
+                        <Select
+                          onValueChange={(value) => {
+                            const newTipo = value as
+                              | "name"
+                              | "documento"
+                              | "placa";
+                            field.onChange(newTipo);
+                            setTipoBusca(newTipo);
+
+                            // Limpa os outros campos que não correspondem ao novo tipo de busca
+                            if (newTipo !== "name") form.resetField("name");
+                            if (newTipo !== "documento")
+                              form.resetField("documento");
+                            if (newTipo !== "placa") form.resetField("placa");
+                          }}
+                          value={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Escolha o tipo de busca" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="name">Nome</SelectItem>
+                            <SelectItem value="documento">RE/CPF</SelectItem>
+                            <SelectItem value="placa">Placa</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Campos dinâmicos */}
+
+                {tipoBusca === "name" && (
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xl">Nome Completo</FormLabel>
+                        <FormControl>
+                          <Input placeholder="João da Silva" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                {tipoBusca === "documento" && (
+                  <FormField
+                    control={form.control}
+                    name="documento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xl">RE / CPF</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="123456 ou 12345678910"
+                            {...field}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            onChange={(e) => {
+                              const onlyNums = e.target.value.replace(
+                                /\D/g,
+                                ""
+                              );
+                              field.onChange(onlyNums);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                {tipoBusca === "placa" && (
+                  <FormField
+                    control={form.control}
+                    name="placa"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xl">
+                          Placa do Veículo
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="AAA-1234 ou AAA-1A23"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <div className="space-y-2">
+                  <Button type="submit">Buscar</Button>
+                  {buscaRealizada && pessoasEncontradas.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma pessoa foi encontrada.
+                    </p>
+                  )}
+                </div>
+              </form>
+            )}
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={openConfirmDeletePessoa}
+        onOpenChange={setOpenConfirmDeletePessoa}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir{" "}
+              <strong>{pessoaParaExcluir?.nome}</strong> e todos os veículos
+              relacionados? Esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                if (!pessoaParaExcluir) return;
+                const res = await deletePessoa(pessoaParaExcluir.id);
+                if (res.success) {
+                  setPessoasEncontradas((prev) =>
+                    prev.filter((p) => p.id !== pessoaParaExcluir.id)
+                  );
+                  setPessoaParaExcluir(null);
+                  setOpenConfirmDeletePessoa(false);
+                } else {
+                  alert("Erro ao excluir: " + res.message);
+                }
               }}
             >
-              Registrar Nova Pessoa
-            </Button>
-            </div>
-          </div>
-          ) : (
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Tipo de busca */}
-              <FormField
-                control={form.control}
-                name="tipoBusca"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg">Buscar por</FormLabel>
-                    <FormControl>
-                      <Select
-                        onValueChange={(value) => {
-                          const newTipo = value as "documento" | "name" | "placa";
-                          field.onChange(newTipo);
-                          setTipoBusca(newTipo);
-
-                          // Limpa os outros campos que não correspondem ao novo tipo de busca
-                          if (newTipo !== "documento") form.resetField("documento");
-                          if (newTipo !== "name") form.resetField("name");
-                          if (newTipo !== "placa") form.resetField("placa");
-                        }}
-                        value={field.value}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Escolha o tipo de busca" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="documento">RE/CPF</SelectItem>
-                          <SelectItem value="name">Nome</SelectItem>
-                          <SelectItem value="placa">Placa</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Campos dinâmicos */}
-              {tipoBusca === "documento" && (
-                <FormField
-                  control={form.control}
-                  name="documento"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xl">RE / CPF</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="123456 ou 12345678910"
-                          {...field}
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          onChange={(e) => {
-                            const onlyNums = e.target.value.replace(/\D/g, "");
-                            field.onChange(onlyNums);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              {tipoBusca === "name" && (
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xl">Nome Completo</FormLabel>
-                      <FormControl>
-                        <Input placeholder="João da Silva" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              {tipoBusca === "placa" && (
-                <FormField
-                  control={form.control}
-                  name="placa"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xl">Placa do Veículo</FormLabel>
-                      <FormControl>
-                        <Input placeholder="AAA-1234 ou AAA-1A23" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <div className="space-y-2">
-                <Button type="submit">Buscar</Button>
-                {buscaRealizada && pessoasEncontradas.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma pessoa foi encontrada.
-                  </p>
-                )}
-              </div>
-            </form>
-          )}
-        </Form>
-      </DialogContent>
-    </Dialog>
-
-    <AlertDialog open={openConfirmDeletePessoa} onOpenChange={setOpenConfirmDeletePessoa}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-          <AlertDialogDescription>
-            Tem certeza que deseja excluir <strong>{pessoaParaExcluir?.nome}</strong> e todos os veículos relacionados? Esta ação não poderá ser desfeita.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-red-600 hover:bg-red-700"
-            onClick={async () => {
-              if (!pessoaParaExcluir) return;
-              const res = await deletePessoa(pessoaParaExcluir.id);
-              if (res.success) {
-                setPessoasEncontradas((prev) =>
-                  prev.filter((p) => p.id !== pessoaParaExcluir.id)
-                );
-                setPessoaParaExcluir(null);
-                setOpenConfirmDeletePessoa(false);
-              } else {
-                alert("Erro ao excluir: " + res.message);
-              }
-            }}
-          >
-            Excluir
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

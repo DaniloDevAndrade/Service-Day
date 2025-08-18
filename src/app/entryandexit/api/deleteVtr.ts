@@ -1,6 +1,3 @@
-// src/app/entryandexit/api/deleteViatura.ts
-"use server";
-
 import { prisma } from "../../../../database/db";
 
 export default async function deleteViatura(id: string) {
@@ -12,9 +9,13 @@ export default async function deleteViatura(id: string) {
     });
 
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Erro ao excluir viatura:", error);
-    // @ts-expect-error
-    return { success: false, message: error.message };
+
+    if (error instanceof Error) {
+      return { success: false, message: error.message };
+    }
+
+    return { success: false, message: "Erro desconhecido ao excluir viatura." };
   }
 }

@@ -2,13 +2,35 @@
   "name": "service-of-day",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm run next\" \"npm run electron\"",
-    "electron": "electron ./electron/main.js",
+    "electron": "wait-on http://localhost:3000 && electron ./electron/main.js",
     "next": "next",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.suaempresa.serviceday",
+    "productName": "Service of Day",
+    "files": [
+      "electron/**",
+      ".env",
+      ".next/**",
+      "public/**",
+      "package.json",
+      "next.config.js",
+      "node_modules/**"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "asar": true,
+    "win": {
+      "target": "nsis"
+    }
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

@@ -23,20 +23,13 @@ import z from "zod";
 const formSchema = z.object({
   numeroParte: z
     .string()
-    .regex(/^[0-9]{2}BPMM\s[0-9]{3}\/[0-9]{3}\/[0-9]{2}$/, {
+    .regex(/^[0-9]{2}bpm{1}m\s[0-9]{3}\/[0-9]{3}\/[0-9]{2}$/i, {
       message: "Formato inválido. Ex: 33BPMM 123/010/25",
     }),
   reResponsavel: z.string().regex(/^[0-9]{6}-[0-9]{1}$/, {
     message: "Formato inválido. Ex: 123456-7",
   }),
-  nomeGuerra: z
-    .string()
-    .regex(
-      /^(SD|CB|3º SGT|2º SGT|1º SGT|ST|ASP OF|2º TEN|1º TEN|CAP|MAJ|TC|CEL)\sPM\s[A-Z][a-z]+$/,
-      {
-        message: "Formato inválido. Ex: 2º TEN PM Silva ou 3º SGT PM Souza",
-      }
-    ),
+  nomeGuerra: z.string().min(3, "Nome de guerra obrigatório"),
   horaInicio: z.string().min(1, "Hora de início obrigatória"),
   horaFim: z.string().min(1, "Hora de término obrigatória"),
 });
@@ -66,7 +59,24 @@ export default function DialogRelatorioPessoas({
   });
 
   const onSubmit = (values: FormValues) => {
-    onConfirmar(values);
+    // Formatar nome de guerra
+    const partes = values.nomeGuerra.trim().split(/\s+/);
+    const patente = partes.slice(0, -1).join(" ").toUpperCase();
+    const nome = partes.at(-1)?.toLowerCase();
+    const nomeFormatado = nome
+      ? nome.charAt(0).toUpperCase() + nome.slice(1)
+      : "";
+    const nomeGuerraFormatado = `${patente} ${nomeFormatado}`;
+
+    // Formatar número da parte
+    const numeroParteFormatado = values.numeroParte.toUpperCase();
+
+    onConfirmar({
+      ...values,
+      numeroParte: numeroParteFormatado,
+      nomeGuerra: nomeGuerraFormatado,
+    });
+
     setOpen(false);
   };
 

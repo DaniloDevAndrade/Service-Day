@@ -1,11 +1,22 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import actionLogout from "../api/auth/logout";
 
 type HeaderProps = {
   isAdmin?: boolean;
+  userName?: string | null;
 };
 
-export default function Header({ isAdmin }: HeaderProps) {
+export default function Header({ isAdmin, userName }: HeaderProps) {
   return (
     <div className="relative p-5 h-40 w-full bg-[#333] border-b-4 border-[#FF0E18] flex items-center">
       {/* Logo à esquerda */}
@@ -26,7 +37,7 @@ export default function Header({ isAdmin }: HeaderProps) {
       </div>
 
       {/* Navegação à direita */}
-      <nav className="absolute right-5 flex flex-row gap-5 text-white">
+      <nav className="absolute right-5 flex flex-row items-center gap-5 text-white">
         {isAdmin && (
           <>
             <Link href="/" className="hover:font-bold font-medium">
@@ -37,9 +48,40 @@ export default function Header({ isAdmin }: HeaderProps) {
             </Link>
           </>
         )}
+
         <Link href="/entryandexit" className="hover:font-bold font-medium">
           Entrada de Pessoas e Veículos
         </Link>
+
+        {userName ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="text-white border-white hover:bg-white/10"
+              >
+                Minha Conta
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {/* Caso queira ativar depois */}
+              {/* <DropdownMenuItem asChild>
+                  <Link href="/account">Configurações</Link>
+                  </DropdownMenuItem> */}
+              <DropdownMenuItem
+                onClick={async () => {
+                  await actionLogout();
+                }}
+              >
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Link href="/" className="hover:font-bold font-medium">
+            Login
+          </Link>
+        )}
       </nav>
     </div>
   );
