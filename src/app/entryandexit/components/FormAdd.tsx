@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import createPessoa from "../api/createPessoa";
 import { toast } from "sonner";
 
@@ -110,14 +110,53 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
       posto: "Soldado",
       unidade: "",
       possuiVeiculo: "sim",
-      veiculo: Array(1).fill({ placa: "", modelo: "", cartao: "" }),
+      veiculo: Array.from({ length: 1 }, () => ({
+        placa: "",
+        modelo: "",
+        cartao: "",
+      })),
     },
   });
 
+  // sempre que abrir com "sim", garante o array de veículos
+  useEffect(() => {
+    if (!open) return;
+    const pv = form.getValues("possuiVeiculo");
+    if (pv === "sim") {
+      const atual = form.getValues("veiculo") ?? [];
+      if (atual.length !== quantidadeVeiculos) {
+        form.setValue(
+          "veiculo",
+          Array.from({ length: quantidadeVeiculos }, () => ({
+            placa: "",
+            modelo: "",
+            cartao: "",
+          }))
+        );
+      }
+    }
+    setPossuiVeiculo(form.getValues("possuiVeiculo"));
+  }, [open, form, quantidadeVeiculos]);
+
+  const atualizarQuantidade = (qtd: number) => {
+    setQuantidadeVeiculos(qtd);
+    form.setValue(
+      "veiculo",
+      Array.from({ length: qtd }, () => ({
+        placa: "",
+        modelo: "",
+        cartao: "",
+      }))
+    );
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    // normaliza documento no front também (opcional, espelha a API)
+    const documento = values.documento.replace(/\D/g, "");
+
     const response = await createPessoa({
       name: values.name,
-      documento: values.documento,
+      documento,
       patente: values.posto,
       unidade: values.unidade,
       possuiVeiculo: values.possuiVeiculo,
@@ -131,20 +170,45 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
         posto: "Soldado",
         unidade: "",
         possuiVeiculo: "sim",
-        veiculo: [],
+        veiculo: Array.from({ length: 1 }, () => ({
+          placa: "",
+          modelo: "",
+          cartao: "",
+        })),
       });
-
       setQuantidadeVeiculos(1);
       setPossuiVeiculo("sim");
       setOpen(false);
       toast(`${values.name} registrado com sucesso!`);
     } else {
-      toast("Erro: " + response.message);
+      toast(response.message || "Erro ao registrar pessoa.");
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) {
+          // prepara para próxima abertura
+          form.reset({
+            name: "",
+            documento: "",
+            posto: "Soldado",
+            unidade: "",
+            possuiVeiculo: "sim",
+            veiculo: Array.from({ length: 1 }, () => ({
+              placa: "",
+              modelo: "",
+              cartao: "",
+            })),
+          });
+          setQuantidadeVeiculos(1);
+          setPossuiVeiculo("sim");
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -172,7 +236,15 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                   <FormItem>
                     <FormLabel>RE / CPF</FormLabel>
                     <FormControl>
-                      <Input placeholder="123456 ou 12345678910" {...field} />
+                      <Input
+                        placeholder="123456 ou 123.456.789-10"
+                        {...field}
+                        onChange={(e) => {
+                          // mantém apenas dígitos (opcional, coerente com API)
+                          const only = e.target.value.replace(/\D/g, "");
+                          field.onChange(only);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -252,11 +324,14 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                           } else {
                             form.setValue(
                               "veiculo",
-                              Array(quantidadeVeiculos).fill({
-                                placa: "",
-                                modelo: "",
-                                cartao: "",
-                              })
+                              Array.from(
+                                { length: quantidadeVeiculos },
+                                () => ({
+                                  placa: "",
+                                  modelo: "",
+                                  cartao: "",
+                                })
+                              )
                             );
                           }
                         }}
@@ -275,8 +350,7 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                 )}
               />
 
-              {/* Se SIM, escolher quantidade e preencher */}
-              {possuiVeiculo === "sim" && (
+              {form.watch("possuiVeiculo") === "sim" && (
                 <>
                   <FormItem>
                     <FormLabel>Quantos veículos?</FormLabel>
@@ -284,11 +358,7 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                       value={quantidadeVeiculos.toString()}
                       onValueChange={(value) => {
                         const qtd = Number(value);
-                        setQuantidadeVeiculos(qtd);
-                        form.setValue(
-                          "veiculo",
-                          Array(qtd).fill({ placa: "", modelo: "", cartao: "" })
-                        );
+                        atualizarQuantidade(qtd);
                       }}
                     >
                       <SelectTrigger>
@@ -304,7 +374,7 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                     </Select>
                   </FormItem>
 
-                  {form.watch("veiculo")?.map((_, index) => (
+                  {(form.watch("veiculo") ?? []).map((_, index) => (
                     <div
                       key={index}
                       className="border p-3 rounded-lg space-y-4 bg-muted"
@@ -318,7 +388,7 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                           <FormItem>
                             <FormLabel>Placa</FormLabel>
                             <FormControl>
-                              <Input placeholder="AAA-1234" {...field} />
+                              <Input placeholder="AAA-1234 / AAA1A23" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -331,10 +401,7 @@ export default function FormAdd({ open, setOpen }: FormAddProps) {
                           <FormItem>
                             <FormLabel>Modelo</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="Gol G7 / XRE 300"
-                                {...field}
-                              />
+                              <Input placeholder="Gol G7 / XRE 300" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

@@ -15,23 +15,23 @@ import RegisterForm from "./components/RegisterForm";
 import Footer from "../components/Footer";
 
 export default async function Register() {
-  const session = await auth();
+  // const session = await auth();
 
-  if (!session?.user?.email) {
-    redirect("/");
-  }
+  // if (!session?.user?.email) {
+  //   redirect("/");
+  // }
 
-  const nivel = await getUserNivelByEmail(session.user.email);
+  // const nivel = await getUserNivelByEmail(session.user.email);
 
-  if (nivel !== "Admin") {
-    redirect("/");
-  }
+  // if (nivel !== "Admin") {
+  //   redirect("/");
+  // }
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header
-        isAdmin={nivel === "Admin"}
-        userName={session.user?.name ?? null}
+        // isAdmin={nivel === "Admin"}
+        // userName={session.user?.name ?? null}
       />
 
       <main className="flex-grow flex justify-center items-start text-white py-10 px-4">

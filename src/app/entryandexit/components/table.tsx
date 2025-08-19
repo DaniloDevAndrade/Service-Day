@@ -86,6 +86,13 @@ type PessoaComVeiculos = Pessoas & {
   }[];
 };
 
+type VeiculoBasico = {
+  id: string;
+  placa: string;
+  modelo: string;
+  tipo: "Particular" | "Viatura";
+};
+
 const patenteLabelMap: Record<string, string> = {
   Coronel: "Coronel",
   TenenteCoronel: "Tenente-Coronel",
@@ -136,11 +143,15 @@ export default function TableInit({
   );
   const [openSearchList, setOpenSearchList] = useState(false);
   const [openDialogRelatorio, setOpenDialogRelatorio] = useState(false);
-
   const [openAddViatura, setOpenAddViatura] = useState(false);
-
   const [openDialogRelatorioVeiculos, setOpenDialogRelatorioVeiculos] =
     useState(false);
+
+  const [tipoInicialMov, setTipoInicialMov] =
+    useState<"Entrada" | "Saida" | null>(null);
+  const [veiculoInicial, setVeiculoInicial] = useState<VeiculoBasico | null>(
+    null
+  );
 
   const registrosFiltrados = movimentos.filter((movimento) => {
     const matchTipo = filtroTipo === "todos" || movimento.tipo === filtroTipo;
@@ -351,7 +362,6 @@ export default function TableInit({
                     <TableBody>
                       {registrosFiltrados.map((movimento) => (
                         <TableRow key={movimento.id}>
-                          {/* Colunas anteriores permanecem as mesmas... */}
                           <TableCell>
                             <Badge
                               variant={
@@ -446,6 +456,51 @@ export default function TableInit({
                                   <Pencil className="w-4 h-4 mr-2" />
                                   Editar
                                 </DropdownMenuItem>
+
+                                {/* NOVO ITEM: Registrar Saída/Entrada */}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setPessoaParaMovimentacao(
+                                      movimento.pessoa as PessoaComVeiculos
+                                    );
+                                    setTipoInicialMov(
+                                      movimento.tipo === "Entrada"
+                                        ? "Saida"
+                                        : "Entrada"
+                                    );
+                                    if (
+                                      movimento.categoria === "Veiculo" &&
+                                      movimento.veiculo
+                                    ) {
+                                      setVeiculoInicial({
+                                        id:
+                                          (movimento.veiculo.id as string) ??
+                                          "",
+                                        placa: movimento.veiculo.placa,
+                                        modelo: movimento.veiculo.modelo,
+                                        tipo:
+                                          movimento.veiculo
+                                            .tipo as "Particular" | "Viatura",
+                                      });
+                                    } else {
+                                      setVeiculoInicial(null);
+                                    }
+                                    setOpenMovimentacao(true);
+                                  }}
+                                >
+                                  {movimento.tipo === "Entrada" ? (
+                                    <>
+                                      <LogOut className="w-4 h-4 mr-2" />
+                                      Registrar Saída
+                                    </>
+                                  ) : (
+                                    <>
+                                      <LogIn className="w-4 h-4 mr-2" />
+                                      Registrar Entrada
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+
                                 <DropdownMenuItem
                                   onClick={() => {
                                     setMovimentoIdParaExcluir(movimento.id);
@@ -453,7 +508,7 @@ export default function TableInit({
                                   }}
                                   className="text-red-600"
                                 >
-                                  <Trash2 className="w-4 h-x4 mr-2" />
+                                  <Trash2 className="w-4 h-4 mr-2" />
                                   Excluir
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -490,10 +545,18 @@ export default function TableInit({
       />
       <FormMovimentacao
         open={openMovimentacao}
-        setOpen={setOpenMovimentacao}
+        setOpen={(v) => {
+          setOpenMovimentacao(v);
+          if (!v) {
+            setTipoInicialMov(null);
+            setVeiculoInicial(null);
+          }
+        }}
         pessoa={pessoaParaMovimentacao}
         atualizarLista={fetchData}
         listaId={listaSelecionadaId ?? ""}
+        tipoInicial={tipoInicialMov}
+        veiculoInicial={veiculoInicial}
       />
       <FormEditMovimentacao
         open={openEditMovimentacao}
@@ -535,7 +598,7 @@ export default function TableInit({
         }}
         onLimparListaSelecionada={() => {
           setListaSelecionadaId(null);
-          setMovimentos([]); // ou apenas: fetchData();
+          setMovimentos([]);
         }}
       />
 

@@ -22,7 +22,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
@@ -49,6 +49,15 @@ type PessoaComVeiculos = Pessoas & {
   }[];
 };
 
+type VeiculoBasico = {
+  id: string;
+  placa: string;
+  modelo: string;
+  tipo: "Particular" | "Viatura";
+};
+
+type VeiculoItem = { id: string; placa: string; modelo: string };
+
 const schema = z.object({
   tipo: z.enum(["Entrada", "Saida"]),
   categoria: z.enum(["Pessoa", "Veiculo"]),
@@ -63,6 +72,8 @@ type FormMovimentacaoProps = {
   pessoa: PessoaComVeiculos | null;
   atualizarLista: () => void;
   listaId: string;
+  tipoInicial?: "Entrada" | "Saida" | null;
+  veiculoInicial?: VeiculoBasico | null;
 };
 
 export default function FormMovimentacao({
@@ -71,21 +82,113 @@ export default function FormMovimentacao({
   pessoa,
   atualizarLista,
   listaId,
+  tipoInicial,
+  veiculoInicial,
 }: FormMovimentacaoProps) {
-  const [viaturas, setViaturas] = useState<
-    { id: string; placa: string; modelo: string }[]
-  >([]);
+  const [viaturas, setViaturas] = useState<VeiculoItem[]>([]);
+  const [particulares, setParticulares] = useState<VeiculoItem[]>([]);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      tipo: "Entrada",
+      tipo: tipoInicial ?? "Entrada",
       categoria: "Pessoa",
       tipoVeiculo: "Particular",
       veiculoId: undefined,
       datahora: new Date(),
     },
   });
+
+  const categoria = useWatch({ control: form.control, name: "categoria" });
+  const tipoVeiculo = useWatch({ control: form.control, name: "tipoVeiculo" });
+
+  const pessoaVeiculos = pessoa?.veiculos ?? [];
+  const merge = (base: VeiculoItem[], extra: VeiculoItem[]) => {
+    const map = new Map<string, VeiculoItem>();
+    [...base, ...extra].forEach((v) => map.set(v.id, v));
+    return Array.from(map.values());
+  };
+  useEffect(() => {
+    if (!open) return;
+
+    setViaturas([]);
+    setParticulares(pessoaVeiculos.map(({ id, placa, modelo }) => ({ id, placa, modelo })));
+
+    if (veiculoInicial) {
+      if (veiculoInicial.tipo === "Viatura") {
+        setViaturas([{ id: veiculoInicial.id, placa: veiculoInicial.placa, modelo: veiculoInicial.modelo }]);
+
+        form.reset({
+          tipo: tipoInicial ?? "Entrada",
+          categoria: "Veiculo",
+          tipoVeiculo: "Viatura",
+          veiculoId: veiculoInicial.id,
+          datahora: new Date(),
+        });
+
+        (async () => {
+          const res = (await requestViaturas()) as { success: boolean; viaturas?: VeiculoItem[] };
+          if (res.success && res.viaturas) {
+            setViaturas((prev) => merge(prev, res.viaturas!));
+            const all = merge([{ id: veiculoInicial.id, placa: veiculoInicial.placa, modelo: veiculoInicial.modelo }], res.viaturas!);
+            const stillThere = all.some((v) => v.id === veiculoInicial.id);
+            if (!stillThere && all.length > 0) {
+              form.setValue("veiculoId", all[0].id);
+            }
+          }
+        })();
+      } else {
+        setParticulares((prev) => {
+          const withInitial = merge(prev, [{ id: veiculoInicial.id, placa: veiculoInicial.placa, modelo: veiculoInicial.modelo }]);
+          return withInitial;
+        });
+
+        form.reset({
+          tipo: tipoInicial ?? "Entrada",
+          categoria: "Veiculo",
+          tipoVeiculo: "Particular",
+          veiculoId: veiculoInicial.id,
+          datahora: new Date(),
+        });
+      }
+    } else {
+      form.reset({
+        tipo: tipoInicial ?? "Entrada",
+        categoria: "Pessoa",
+        tipoVeiculo: "Particular",
+        veiculoId: undefined,
+        datahora: new Date(),
+      });
+    }
+  }, [open, tipoInicial, veiculoInicial, pessoaVeiculos, form]);
+
+  useEffect(() => {
+    if (categoria === "Veiculo" && (tipoVeiculo ?? "Particular") === "Particular") {
+      if (!form.getValues("veiculoId") && particulares.length === 1) {
+        form.setValue("veiculoId", particulares[0].id);
+      }
+    }
+  }, [categoria, tipoVeiculo, particulares, form]);
+
+  useEffect(() => {
+    if (categoria !== "Veiculo") {
+      form.setValue("veiculoId", undefined);
+      return;
+    }
+
+    const t = tipoVeiculo ?? "Particular";
+    if (t === "Particular") {
+      if (particulares.length === 0 && pessoaVeiculos.length > 0) {
+        const list = pessoaVeiculos.map(({ id, placa, modelo }) => ({ id, placa, modelo }));
+        setParticulares(list);
+        form.setValue("veiculoId", list[0].id);
+      } else if (particulares.length > 0) {
+        if (!form.getValues("veiculoId")) form.setValue("veiculoId", particulares[0].id);
+      } else {
+        form.setValue("veiculoId", undefined);
+      }
+    }
+  }, [categoria, tipoVeiculo, particulares, pessoaVeiculos, form]);
 
   const onSubmit = async (values: z.infer<typeof schema>) => {
     if (!pessoa) return;
@@ -94,10 +197,9 @@ export default function FormMovimentacao({
       pessoaId: pessoa.id,
       tipo: values.tipo,
       categoria: values.categoria,
-      veiculoId:
-        values.categoria === "Veiculo" ? values.veiculoId || null : null,
+      veiculoId: values.categoria === "Veiculo" ? values.veiculoId || null : null,
       datahora: values.datahora,
-      listaId: listaId,
+      listaId,
     };
 
     const res = await createMovimentacao(payload);
@@ -111,24 +213,34 @@ export default function FormMovimentacao({
         datahora: new Date(),
       });
       setOpen(false);
-      setTimeout(() => {
-        atualizarLista();
-      }, 200);
+      setViaturas([]);
+      setParticulares([]);
+      setTimeout(() => atualizarLista(), 200);
     } else {
       toast("Erro: " + res.message);
     }
   };
 
-  useEffect(() => {
-    if (pessoa && pessoa.veiculos.length === 1) {
-      form.setValue("veiculoId", pessoa.veiculos[0].id);
-    }
-  }, [pessoa]);
-
   if (!pessoa) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) {
+          form.reset({
+            tipo: "Entrada",
+            categoria: "Pessoa",
+            tipoVeiculo: "Particular",
+            veiculoId: undefined,
+            datahora: new Date(),
+          });
+          setViaturas([]);
+          setParticulares([]);
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Registrar Movimentação</DialogTitle>
@@ -162,9 +274,7 @@ export default function FormMovimentacao({
                               )}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value
-                                ? field.value.toLocaleDateString("pt-BR")
-                                : "Escolha a data"}
+                              {field.value ? field.value.toLocaleDateString("pt-BR") : "Escolha a data"}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -173,12 +283,11 @@ export default function FormMovimentacao({
                             mode="single"
                             selected={field.value}
                             onSelect={(date) => {
-                              const updated = new Date(
-                                field.value || new Date()
-                              );
-                              updated.setFullYear(date?.getFullYear() ?? 0);
-                              updated.setMonth(date?.getMonth() ?? 0);
-                              updated.setDate(date?.getDate() ?? 0);
+                              if (!date) return;
+                              const updated = new Date(field.value || new Date());
+                              updated.setFullYear(date.getFullYear());
+                              updated.setMonth(date.getMonth());
+                              updated.setDate(date.getDate());
                               field.onChange(updated);
                             }}
                             initialFocus
@@ -190,14 +299,12 @@ export default function FormMovimentacao({
                         <Input
                           type="time"
                           className="w-full max-w-[6rem]"
-                          value={field.value.toTimeString().slice(0, 5)}
+                          value={field.value ? field.value.toTimeString().slice(0, 5) : "00:00"}
                           onChange={(e) => {
-                            const [hours, minutes] = e.target.value
-                              .split(":" as const)
-                              .map(Number);
+                            const [hours, minutes] = e.target.value.split(":").map(Number);
                             const updated = new Date(field.value || new Date());
-                            updated.setHours(hours);
-                            updated.setMinutes(minutes);
+                            if (!Number.isNaN(hours)) updated.setHours(hours);
+                            if (!Number.isNaN(minutes)) updated.setMinutes(minutes);
                             field.onChange(updated);
                           }}
                         />
@@ -208,6 +315,7 @@ export default function FormMovimentacao({
                 )}
               />
 
+              {/* Tipo */}
               <FormField
                 control={form.control}
                 name="tipo"
@@ -215,10 +323,7 @@ export default function FormMovimentacao({
                   <FormItem>
                     <FormLabel>Tipo de Movimentação</FormLabel>
                     <FormControl>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
@@ -233,6 +338,7 @@ export default function FormMovimentacao({
                 )}
               />
 
+              {/* Categoria */}
               <FormField
                 control={form.control}
                 name="categoria"
@@ -240,18 +346,13 @@ export default function FormMovimentacao({
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
                     <FormControl>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione a categoria" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Pessoa">Pessoa a Pé</SelectItem>
-                          <SelectItem value="Veiculo">
-                            Pessoa com Veículo
-                          </SelectItem>
+                          <SelectItem value="Veiculo">Pessoa com Veículo</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -260,7 +361,8 @@ export default function FormMovimentacao({
                 )}
               />
 
-              {form.watch("categoria") === "Veiculo" && (
+              {/* Veículo e Tipo */}
+              {categoria === "Veiculo" && (
                 <>
                   <FormField
                     control={form.control}
@@ -272,39 +374,32 @@ export default function FormMovimentacao({
                           <Select
                             onValueChange={async (value) => {
                               field.onChange(value);
-
                               if (value === "Viatura") {
-                                const res = await requestViaturas();
-                                if (res.success && res.viaturas) {
-                                  const formatted = res.viaturas.map((v) => ({
-                                    id: v.id,
-                                    placa: v.placa,
-                                    modelo: v.modelo,
-                                  }));
-                                  setViaturas(formatted);
-
-                                  if (formatted.length > 0) {
-                                    form.setValue("veiculoId", formatted[0].id);
+                                const res = (await requestViaturas()) as { success: boolean; viaturas?: VeiculoItem[] };
+                                const fetched = res.success && res.viaturas ? res.viaturas : [];
+                                setViaturas((prev) => merge(prev, fetched));
+                                const current = form.getValues("veiculoId");
+                                const all = merge(viaturas, fetched);
+                                const hasCurrent = current ? all.some((v) => v.id === current) : false;
+                                if (!hasCurrent) form.setValue("veiculoId", all[0]?.id ?? undefined);
+                              } else {
+                                setParticulares((prev) => {
+                                  if (prev.length === 0 && pessoaVeiculos.length > 0) {
+                                    return pessoaVeiculos.map(({ id, placa, modelo }) => ({ id, placa, modelo }));
                                   }
-                                }
-                              } else if (value === "Particular") {
-                                if (pessoa && pessoa.veiculos.length > 0) {
-                                  form.setValue(
-                                    "veiculoId",
-                                    pessoa.veiculos[0].id
-                                  );
-                                }
+                                  return prev;
+                                });
+                                const list = particulares.length > 0 ? particulares : pessoaVeiculos.map(({ id, placa, modelo }) => ({ id, placa, modelo }));
+                                form.setValue("veiculoId", list[0]?.id ?? undefined);
                               }
                             }}
-                            value={field.value}
+                            value={field.value ?? "Particular"}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o tipo" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Particular">
-                                Particular
-                              </SelectItem>
+                              <SelectItem value="Particular">Particular</SelectItem>
                               <SelectItem value="Viatura">Viatura</SelectItem>
                             </SelectContent>
                           </Select>
@@ -317,36 +412,30 @@ export default function FormMovimentacao({
                   <FormField
                     control={form.control}
                     name="veiculoId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {form.watch("tipoVeiculo") === "Viatura"
-                            ? "Viatura"
-                            : "Veículo"}
-                        </FormLabel>
-                        <FormControl>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o veículo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(form.watch("tipoVeiculo") === "Viatura"
-                                ? viaturas
-                                : pessoa.veiculos
-                              ).map((v) => (
-                                <SelectItem key={v.id} value={v.id}>
-                                  {v.placa} - {v.modelo}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const origem = (tipoVeiculo ?? "Particular") === "Viatura" ? viaturas : particulares;
+
+                      return (
+                        <FormItem>
+                          <FormLabel>{(tipoVeiculo ?? "Particular") === "Viatura" ? "Viatura" : "Veículo"}</FormLabel>
+                          <FormControl>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o veículo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {origem.map((v) => (
+                                  <SelectItem key={v.id} value={v.id}>
+                                    {v.placa} - {v.modelo}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </>
               )}
